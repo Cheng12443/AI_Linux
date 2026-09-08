@@ -1,0 +1,104 @@
+# ============================================================================
+# KAI Linux — Kubernetes Device Plugin（ROADMAP 7.3）
+#
+# 注册 AI 加速资源，让 Pod 可以请求 "kai-linux.ai/inference" 资源。
+#
+# 用法：
+#   kubectl apply -f device-plugin.yaml
+#
+# 之后在 Pod 中声明：
+#   resources:
+#     limits:
+#       kai-linux.ai/inference: "1"
+# ============================================================================
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kai-device-plugin
+  namespace: kube-system
+  labels:
+    app: kai-device-plugin
+spec:
+  selector:
+    matchLabels:
+      app: kai-device-plugin
+  template:
+    metadata:
+      labels:
+        app: kai-device-plugin
+    spec:
+      hostNetwork: true
+      hostPID: true
+      priorityClassName: system-node-critical
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: kai-device-plugin
+          image: kai-linux:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/bin/kai-device-plugin"]
+          args: ["--logtostderr=true", "--v=3"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: kai-socket
+              mountPath: /run/kai-linux
+          env:
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kai-api-keys
+                  key: deepseek
+                  optional: true
+            - name: KIMI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kai-api-keys
+                  key: kimi
+                  optional: true
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+        - name: kai-socket
+          hostPath:
+            path: /run/kai-linux
+
+---
+# API 密钥 Secret（可选，填入实际密钥）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kai-api-keys
+  namespace: kube-system
+type: Opaque
+stringData:
+  deepseek: "sk-your-deepseek-key"
+  kimi: "sk-your-kimi-key"
+
+---
+# 资源限制示例 Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kai-inference-demo
+  labels:
+    app: kai-inference
+spec:
+  containers:
+    - name: app
+      image: ubuntu:24.04
+      command: ["sleep", "infinity"]
+      resources:
+        limits:
+          kai-linux.ai/inference: "1"
+        requests:
+          kai-linux.ai/inference: "1"

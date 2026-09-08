@@ -1,0 +1,102 @@
+# KAI Linux — Alertmanager 告警配置
+#
+# 用法：
+#   alertmanager --config.file=alertmanager.yml
+
+global:
+  resolve_timeout: 5m
+
+# 路由规则
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'webhook'
+
+  routes:
+    # 严重告警
+    - match:
+        severity: critical
+      receiver: 'critical-webhook'
+      group_wait: 0s
+      repeat_interval: 5m
+
+    # 警告
+    - match:
+        severity: warning
+      receiver: 'webhook'
+
+# 接收器
+receivers:
+  # 通用 Webhook（钉钉/飞书/Slack 可替换 URL）
+  - name: 'webhook'
+    webhook_configs:
+      - url: 'http://localhost:9999/alert'
+        send_resolved: true
+
+  # 严重告警 Webhook
+  - name: 'critical-webhook'
+    webhook_configs:
+      - url: 'http://localhost:9999/alert/critical'
+        send_resolved: true
+
+  # 钉钉机器人（示例，需替换 access_token）
+  - name: 'dingtalk'
+    webhook_configs:
+      - url: 'https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN'
+        send_resolved: true
+
+# 告警抑制规则
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+
+# 告警规则（Prometheus 侧触发）
+# 需在 prometheus.yml 中配置以下规则：
+
+# groups:
+#   - name: kai-linux
+#     rules:
+#       - alert: KAIInferenceHighLatency
+#         expr: kai_inference_latency_p99_ns > 100000000
+#         for: 5m
+#         labels:
+#           severity: warning
+#         annotations:
+#           summary: "推理 P99 延迟超过 100ms"
+#
+#       - alert: KAIHighErrorRate
+#         expr: rate(kai_inference_errors_total[5m]) / rate(kai_inferences_total[5m]) > 0.1
+#         for: 5m
+#         labels:
+#           severity: critical
+#         annotations:
+#           summary: "推理错误率超过 10%"
+#
+#       - alert: KAIHighCPUUsage
+#         expr: cpu_usage > 90
+#         for: 10m
+#         labels:
+#           severity: warning
+#         annotations:
+#           summary: "CPU 使用率超过 90%"
+#
+#       - alert: KAIHighMemoryUsage
+#         expr: mem_usage > 90
+#         for: 10m
+#         labels:
+#           severity: warning
+#         annotations:
+#           summary: "内存使用率超过 90%"
+#
+#       - alert: KAIAllBackendsDown
+#         expr: kai_layer2_connected == 0
+#         for: 1m
+#         labels:
+#           severity: critical
+#         annotations:
+#           summary: "所有 AI 后端不可用"

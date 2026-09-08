@@ -1,0 +1,136 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "title": "KAI Linux — AI 系统监控",
+  "uid": "kai-linux",
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "系统健康评分",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "kai_health_score",
+          "legendFormat": "健康评分"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "green", "value": 80 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "推理延迟 (P50/P95/P99)",
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+      "targets": [
+        { "expr": "kai_inference_latency_p50_ns", "legendFormat": "P50" },
+        { "expr": "kai_inference_latency_p95_ns", "legendFormat": "P95" },
+        { "expr": "kai_inference_latency_p99_ns", "legendFormat": "P99" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "推理吞吐量 (req/s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "rate(kai_inferences_total[1m])", "legendFormat": "推理速率" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "错误率",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "rate(kai_inference_errors_total[1m]) / rate(kai_inferences_total[1m]) * 100",
+          "legendFormat": "错误率 (%)"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "CPU 使用率",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 12 },
+      "targets": [ { "expr": "cpu_usage", "legendFormat": "CPU" } ],
+      "fieldConfig": {
+        "defaults": { "max": 100, "min": 0, "unit": "percent" }
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "内存使用率",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 12 },
+      "targets": [ { "expr": "mem_usage", "legendFormat": "内存" } ],
+      "fieldConfig": {
+        "defaults": { "max": 100, "min": 0, "unit": "percent" }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "缓存命中率",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "expr": "rate(kai_cache_hits_total[1m]) / (rate(kai_cache_hits_total[1m]) + rate(kai_cache_misses_total[1m])) * 100",
+          "legendFormat": "缓存命中率 (%)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API 调用分布",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        { "expr": "rate(kai_api_calls_total[1m])", "legendFormat": "外部 API" },
+        { "expr": "rate(kai_local_calls_total[1m])", "legendFormat": "本地推理" },
+        { "expr": "rate(kai_fallback_calls_total[1m])", "legendFormat": "降级规则" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Layer2 状态",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [ { "expr": "kai_layer2_connected", "legendFormat": "Layer2" } ]
+    },
+    {
+      "type": "bargauge",
+      "title": "Skill 路由分布",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 4 },
+      "targets": [
+        { "expr": "kai_skill_sched_total", "legendFormat": "调度" },
+        { "expr": "kai_skill_io_total", "legendFormat": "IO" },
+        { "expr": "kai_skill_sec_total", "legendFormat": "安全" },
+        { "expr": "kai_skill_mem_total", "legendFormat": "内存" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "DeepSeek vs Kimi 调用",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "targets": [
+        { "expr": "rate(kai_deepseek_calls_total[1m])", "legendFormat": "DeepSeek" },
+        { "expr": "rate(kai_kimi_calls_total[1m])", "legendFormat": "Kimi K3" }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["kai-linux", "ai", "linux"],
+  "templating": { "list": [] }
+}

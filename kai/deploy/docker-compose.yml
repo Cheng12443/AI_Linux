@@ -1,0 +1,162 @@
+# ============================================================================
+# KAI Linux — 完整 Docker Compose 编排
+#
+# 启动所有模块：
+#   docker-compose up -d
+#
+# 启动单个模块：
+#   docker-compose up -d kai-web
+#   docker-compose up -d kai-monitor
+#   docker-compose up -d kai-ws
+#   docker-compose up -d kai-gateway
+#
+# 查看状态：
+#   docker-compose ps
+#   docker-compose logs -f
+# ============================================================================
+
+version: "3.9"
+
+x-kai-common: &kai-common
+  build:
+    context: ../..
+    dockerfile: kai/deploy/Dockerfile
+  image: kai-linux:latest
+  restart: unless-stopped
+  environment: &kai-env
+    - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+    - KIMI_API_KEY=${KIMI_API_KEY:-}
+    - KAI_BACKEND=${KAI_BACKEND:-deepseek}
+    - KAI_MODE=${KAI_MODE:-async}
+    - TZ=${TZ:-Asia/Shanghai}
+  networks:
+    - kai-net
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+
+  # ==========================================================================
+  # 主服务 — 启动所有模块（supervisord 管理）
+  # ==========================================================================
+  kai:
+    <<: *kai-common
+    container_name: kai-linux
+    hostname: kai-linux
+    command: ["all"]
+    ports:
+      - "8080:8080"    # Web Dashboard
+      - "9090:9090"    # 性能监控
+      - "9998:9998"    # WebSocket
+      - "9999:9999"    # Layer2 网关
+    volumes:
+      - kai-models:/var/lib/kai-linux/models
+      - kai-logs:/var/log/kai-linux
+      - kai-config:/etc/kai-linux
+    # 内核模块需要特权模式（在宿主机加载 .ko）
+    privileged: true
+    # 使用宿主机 PID 命名空间（访问进程信息）
+    pid: host
+    # 只读访问宿主机 proc/sys
+    volumes_from: []
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/status", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          cpus: "1.0"
+          memory: 512M
+
+  # ==========================================================================
+  # Layer2 网关（独立服务，可单独扩展）
+  # ==========================================================================
+  kai-gateway:
+    <<: *kai-common
+    container_name: kai-gateway
+    command: ["gateway"]
+    profiles: ["gateway", "full"]
+    ports:
+      - "9999:9999"
+    volumes:
+      - kai-models:/var/lib/kai-linux/models
+      - kai-logs:/var/log/kai-linux
+
+  # ==========================================================================
+  # Web Dashboard
+  # ==========================================================================
+  kai-web:
+    <<: *kai-common
+    container_name: kai-web
+    command: ["web"]
+    profiles: ["web", "full"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - kai-logs:/var/log/kai-linux
+
+  # ==========================================================================
+  # 性能监控面板
+  # ==========================================================================
+  kai-monitor:
+    <<: *kai-common
+    container_name: kai-monitor
+    command: ["monitor"]
+    profiles: ["monitor", "full"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - kai-logs:/var/log/kai-linux
+
+  # ==========================================================================
+  # WebSocket 推送
+  # ==========================================================================
+  kai-ws:
+    <<: *kai-common
+    container_name: kai-ws
+    command: ["ws"]
+    profiles: ["ws", "full"]
+    ports:
+      - "9998:9998"
+    volumes:
+      - kai-logs:/var/log/kai-linux
+
+  # ==========================================================================
+  # TUI 交互（需 attach）
+  # ==========================================================================
+  kai-tui:
+    <<: *kai-common
+    container_name: kai-tui
+    command: ["shell"]
+    profiles: ["tui"]
+    stdin_open: true
+    tty: true
+
+# ============================================================================
+# 网络
+# ============================================================================
+networks:
+  kai-net:
+    driver: bridge
+
+# ============================================================================
+# 卷
+# ============================================================================
+volumes:
+  kai-models:
+    driver: local
+  kai-logs:
+    driver: local
+  kai-config:
+    driver: local

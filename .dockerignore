@@ -1,0 +1,25 @@
+# KAI Linux Docker 构建忽略文件
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.o
+*.ko
+*.mod.c
+*.mod
+*.symvers
+modules.order
+.tmp_versions
+build/
+dist/
+*.egg-info/
+node_modules/
+.vscode/
+.idea/
+*.tar.gz
+*.qcow2
+*.iso
+*.vmdk
+*.vdi
+kai-linux.tar.gz
