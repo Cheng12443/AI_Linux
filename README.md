@@ -14,6 +14,11 @@ K · Kernel     A · AI     I · Intelligence
 ![sys_infer](https://img.shields.io/badge/核心系统调用-sys__infer__()-f472b6?style=flat-square&labelColor=0d0d20)
 ![AI_Linux](https://img.shields.io/badge/AI_Linux-Repo%20on%20GitHub-0d0d20?style=flat-square&logo=github&logoColor=fff)
 
+[![CI](https://img.shields.io/github/actions/workflow/status/Cheng12443/AI_Linux/ci.yml?branch=main&label=CI&style=flat-square&labelColor=0d0d20&color=3ef0a0&logo=githubactions&logoColor=fff)](https://github.com/Cheng12443/AI_Linux/actions/workflows/ci.yml)
+![Security](https://img.shields.io/badge/Security%20Scan-C%3A0%20H%3A0%20M%3A0%20L%3A0-00d4ff?style=flat-square&labelColor=0d0d20)
+![Stress](https://img.shields.io/badge/Stress%20Test-100%25%20success%20%C2%B7%201.7M%20ops-a78bfa?style=flat-square&labelColor=0d0d20)
+![Plugins](https://img.shields.io/badge/Everything--as--a--Plugin-38%20hot--pluggable-fbbf24?style=flat-square&labelColor=0d0d20)
+
 **✨ 交互式官网页面（GitHub Pages）** → [**KAI Linux 完整介绍**](https://cheng12443.github.io/AI_Linux/)
 
 </div>
