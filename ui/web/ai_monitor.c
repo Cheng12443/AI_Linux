@@ -130,11 +130,11 @@ static void read_cpu(MonitorData *d)
         if (strncmp(line, "cpu ", 4) == 0) {
             unsigned long long u = 0, s = 0, i = 0, w = 0;
             sscanf(line + 5, "%llu %llu %llu %llu %llu", &u, &s, &s, &i, &w);
-            unsigned long long total = (u - prev_user) + (s - prev_system) +
+            unsigned long long total = (u - prev_user) + (s - prev_sys) +
                                       (i - prev_idle) + (w - prev_iowait);
             if (total > 0)
                 d->cpu_usage = (int)((total - (i - prev_idle)) * 100 / total);
-            prev_user = u; prev_system = s; prev_idle = i; prev_iowait = w;
+            prev_user = u; prev_sys = s; prev_idle = i; prev_iowait = w;
             d->cpu_user = u; d->cpu_system = s;
             d->cpu_idle = i; d->cpu_iowait = w;
             break;

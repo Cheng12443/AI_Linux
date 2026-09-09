@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <poll.h>
 
 /* =========================================================================
  * 常量
@@ -1399,6 +1400,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    web_cfg.running = 1;
     accept_loop(listen_fd);
     close(listen_fd);
 
