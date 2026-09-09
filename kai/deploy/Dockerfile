@@ -8,7 +8,7 @@ LABEL version="2.0.0"
 RUN apt-get update && apt-get install -y \
     build-essential gcc make \
     libncurses-dev libelf-dev libssl-dev liburing-dev bc kmod \
-    clang llvm libbpf-dev bpftool \
+    clang llvm libbpf-dev \
     linux-tools-common linux-tools-generic \
     python3 python3-pip python3-venv \
     curl wget git vim \
