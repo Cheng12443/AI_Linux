@@ -266,7 +266,7 @@ footer{padding:40px 0;text-align:center;color:var(--dim2);font-size:12px;border-
   <h1>把 <span>AI</span> 写进内核</h1>
   <p class="sub">KAI Linux —— 内核级 AI 操作系统：AI 调度、网络智能防护、内核安全检测、内存热度预测；DeepSeek + Kimi K3 双后端；全插件热插拔架构，一切模块皆插件。</p>
   <div class="chip">
-    <span>🧠 sys_infer() 系统调用</span>
+    <span>🧠 sys_infer #548 已编译进 vmlinux</span>
     <span>⚡ sched_ext BPF 调度</span>
     <span>🛡 XDP + LSM 安全</span>
     <span>🔌 一切皆插件</span>
@@ -276,11 +276,11 @@ footer{padding:40px 0;text-align:center;color:var(--dim2);font-size:12px;border-
 <div class="wrap">
   <!-- ================= 统计 ================= -->
   <div class="stats">
-    <div class="stat g"><b>112</b><em>源文件</em></div>
-    <div class="stat c"><b>858K</b><em>代码量 (C/Python)</em></div>
-    <div class="stat p"><b>27+30</b><em>C 文件 + Python 模块</em></div>
+    <div class="stat g"><b>136</b><em>源文件</em></div>
+    <div class="stat c"><b>929K</b><em>代码量 (C/Python)</em></div>
+    <div class="stat p"><b>34+32</b><em>C 文件 + Python 模块</em></div>
     <div class="stat a"><b>38</b><em>热插拔插件</em></div>
-    <div class="stat g"><b>91/91</b><em>ROADMAP 完成</em></div>
+    <div class="stat g"><b>91/91</b><em>ROADMAP 完成 · CI 绿</em></div>
     <div class="stat c"><b>2</b><em>AI 后端 (DeepSeek/Kimi)</em></div>
   </div>
 
@@ -351,7 +351,8 @@ kai-plugin enable/disable/reload/start/stop</pre>
 ├─ <span class="c">ebpf/</span>            <span class="r">sched/ · io/ · security/ · kai_sched_ext.bpf.c</span>
 ├─ <span class="c">layer2/</span>          <span class="r">网关 netlink 路由 · DeepSeek/Kimi · MCP 协议 · Skill 注册表 · 配置</span>
 ├─ <span class="c">kai/</span>             <span class="r">优化引擎与生态</span>
-│  ├─ core/          <span class="r">量化 kai_quant · 推理引擎 kai_infer · syscall · SIMD</span>
+│  ├─ core/          <span class="r">量化 · 推理引擎 · syscall(kai_infer #548) · SIMD</span>
+│  │   └─ syscall/     <span class="r">vmlinux 实现 · 打补丁脚本 · libkai · 引擎适配</span>
 │  ├─ cache/         <span class="r">多级缓存 LRU/LFU · slab 对象池</span>
 │  ├─ resilience/    <span class="r">熔断器 · 超时 · 内存压力 · 降级链</span>
 │  ├─ observe/       <span class="r">Prometheus 指标 · 审计日志 · 告警</span>
@@ -374,11 +375,12 @@ kai-plugin enable/disable/reload/start/stop</pre>
     <div class="sec-head"><div class="no">4</div><h2>关键能力</h2></div>
     <div class="grid2">
       <div class="feat"><h3>🧠 内核 AI</h3><ul>
-        <li><b>sys_infer()</b> — 推理作为系统调用（#548）</li>
+        <li><b>sys_infer() #548</b> — 已集成：vmlinux 实现 + libkai 库 + 引擎热插拔</li>
         <li><b>AI 调度</b> — sched_ext 完整 BPF 调度器，决策缓存 + NUMA 感知</li>
         <li><b>模型量化</b> — INT8/FP16/INT4 量化推理</li>
         <li><b>多级缓存</b> — 哈希表 + LRU/LFU + slab 对象池</li>
         <li><b>批处理 + 预热线程</b> — 合并推理请求，消除冷启动</li>
+        <li><b>AI 决策点</b> — sched_ext/XDP/LSM/vmscan 钩子内推理 + M1–M6 验收脚本</li>
       </ul></div>
       <div class="feat"><h3>🛡 安全 &amp; 可靠性</h3><ul>
         <li><b>XDP 异常检测</b> — 网卡层就地分类</li>
@@ -436,8 +438,8 @@ kai-plugin enable/disable/reload/start/stop</pre>
 
     <div class="qa-badge">
       <div class="qb"><b>0 / 0 / 0 / 0</b><small>CRITICAL·HIGH·MEDIUM·LOW</small></div>
-      <div class="qb"><b>1,766,778</b><small>压测总操作 · 0 错误</small></div>
-      <div class="qb"><b>3 项 Job</b><small>GitHub Actions CI</small></div>
+      <div class="qb"><b>100% · 0 错误</b><small>压测 11 模块 · 并发全绿</small></div>
+      <div class="qb"><b>3/3 Job 绿</b><small>GitHub Actions · 漏洞 0/0/0/0</small></div>
       <div class="qb"><b>5 / 5</b><small>本地质量门禁</small></div>
     </div>
 
@@ -472,7 +474,7 @@ kai-plugin enable/disable/reload/start/stop</pre>
         <ul>
           <li><b>仓库</b> — github.com/Cheng12443/AI_Linux</li>
           <li><b>最新</b> — 25 文件更新：安全修复 + 测试工具 + 全插件热插拔</li>
-          <li><b>120 文件</b> · main 分支 · Pages 托管本页</li>
+          <li><b>133 文件</b> · main 分支 · CI 全绿 · Pages 托管本页</li>
         </ul>
       </div>
     </div>
