@@ -59,8 +59,10 @@ static struct {
     const char *api_key;
     const char *backend;
     int         verbose;
+    char        bind[64];
 } web_cfg = {
     .port    = PORT,
+    .bind    = "127.0.0.1",
     .api_key = NULL,
     .backend = "deepseek",
     .verbose = 0,
@@ -149,11 +151,11 @@ static int create_listen_socket(int port)
     int opt = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    struct sockaddr_in addr = {
-        .sin_family = AF_INET,
-        .sin_port   = htons(port),
-        .sin_addr.s_addr = INADDR_ANY,
-    };
+    struct sockaddr_in addr = { 0 };
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons(port);
+    if (!inet_pton(AF_INET, web_cfg.bind, &addr.sin_addr))
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         close(fd); return -1;
@@ -1282,7 +1284,7 @@ static void accept_loop(int listen_fd)
     };
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, listen_fd, &ev);
 
-    printf("  监听 : http://0.0.0.0:%d\n", web_cfg.port);
+    printf("  监听 : http://%s:%d\n", web_cfg.bind, web_cfg.port);
     printf("  访问 : http://localhost:%d\n", web_cfg.port);
     printf("  按 Ctrl+C 停止\n\n");
 
@@ -1334,6 +1336,7 @@ static void usage(const char *prog)
     printf("    %s [--port PORT] [--key KEY] [--backend BACKEND] [--help]\n\n", prog);
     printf("  选项:\n");
     printf("    --port PORT     监听端口（默认 %d）\n", PORT);
+    printf("    --bind ADDR     绑定地址（默认 127.0.0.1；公网部署请务必置于鉴权反向代理后）\n");
     printf("    --key KEY       API 密钥\n");
     printf("    --key-env VAR   从环境变量读取密钥\n");
     printf("    --backend NAME  后端: deepseek(默认) | kimi\n");

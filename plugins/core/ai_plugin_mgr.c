@@ -616,7 +616,7 @@ void ai_proc_plugins_init(void)
 {
     ai_plugins_dir = proc_mkdir("ai_plugins", NULL);
     if (ai_plugins_dir)
-        proc_create("list", 0644, ai_plugins_dir, &plugins_proc_fops);
+        proc_create("list", 0600, ai_plugins_dir, &plugins_proc_fops);
 }
 
 void ai_proc_plugins_exit(void)

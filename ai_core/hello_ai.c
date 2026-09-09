@@ -186,7 +186,7 @@ static int __init hello_ai_init(void)
     }
 
     proc_create("stats", 0444, hello_proc_dir, &hello_proc_fops);
-    proc_create("infer", 0222, hello_proc_dir, &hello_proc_fops);
+    proc_create("infer", 0600, hello_proc_dir, &hello_proc_fops);
 
     pr_info("%s: 模块初始化完成，查看 /proc/hello_ai/stats\n", DRV_NAME);
     pr_info("%s: 触发推理: echo 1 > /proc/hello_ai/infer\n", DRV_NAME);

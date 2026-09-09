@@ -51,8 +51,10 @@ static struct {
     const char *api_key;
     int         backend;       /* 0=deepseek, 1=kimi */
     int         refresh_ms;
+    char        bind[64];
 } G = {
     .port       = PORT,
+    .bind       = "127.0.0.1",
     .api_key    = NULL,
     .backend    = 0,
     .refresh_ms = 1000,
@@ -315,11 +317,11 @@ static int create_listen(int port)
     int opt = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    struct sockaddr_in addr = {
-        .sin_family = AF_INET,
-        .sin_port   = htons(port),
-        .sin_addr.s_addr = INADDR_ANY,
-    };
+    struct sockaddr_in addr = { 0 };
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons(port);
+    if (!inet_pton(AF_INET, G.bind, &addr.sin_addr))
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         close(fd); return -1;
@@ -748,6 +750,8 @@ int main(int argc, char **argv)
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--port") == 0 && i+1 < argc)
             G.port = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--bind") == 0 && i+1 < argc)
+            strncpy(G.bind, argv[++i], sizeof(G.bind) - 1);
         else if (strcmp(argv[i], "--key") == 0 && i+1 < argc)
             G.api_key = argv[++i];
         else if (strcmp(argv[i], "--backend") == 0 && i+1 < argc) {
@@ -758,7 +762,7 @@ int main(int argc, char **argv)
             G.refresh_ms = atoi(argv[++i]);
     }
 
-    printf("  监听: http://0.0.0.0:%d\n", G.port);
+    printf("  监听: http://%s:%d\n", G.bind, G.port);
     printf("  后端: %s\n", G.backend ? "Kimi K3" : "DeepSeek");
     printf("  刷新: %dms\n\n", G.refresh_ms);
 

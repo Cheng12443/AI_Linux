@@ -26,10 +26,12 @@ import sys
 import json
 import time
 import socket
+import struct
 import argparse
 import threading
 
 SOCK_PATH = os.environ.get("KAI_PLUGIN_SOCK", "/tmp/kai-plugin.sock")
+struct_size = 12  # struct { int pid; int uid; int gid; }
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "plugins"))
@@ -74,13 +76,27 @@ def serve():
         pass
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     srv.bind(SOCK_PATH)
+    os.chmod(SOCK_PATH, 0o600)   # 仅属主(通常 root)可连，防本地越权
     srv.listen(8)
-    print(color(f"监听: {SOCK_PATH}   (Ctrl+C 退出)", "gray"))
+    print(color(f"监听: {SOCK_PATH} (0600, root-only)  (Ctrl+C 退出)", "gray"))
 
+    PRIV = {"enable","disable","start","stop","unload","reload","unplug","plug"}
     def handle(conn):
         try:
+            peer_uid = 0
+            try:
+                cred = conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED,
+                                       struct_size)
+                peer_uid = struct.unpack("3i", cred)[1]
+            except Exception:
+                peer_uid = -1  # 拿不到身份一律视为非特权
             data = conn.recv(65536).decode()
             req = json.loads(data)
+            if req.get("cmd") in PRIV and peer_uid != 0:
+                conn.sendall(json.dumps(
+                    {"error": "permission denied: 仅 root 可执行特权操作"},
+                    ensure_ascii=False).encode())
+                return
             resp = _execute(m, req)
             conn.sendall(json.dumps(resp, ensure_ascii=False).encode())
         except Exception as e:

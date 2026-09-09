@@ -64,7 +64,7 @@ logger = logging.getLogger("ai-ws")
 
 class Config:
     PORT = 9998
-    HOST = "0.0.0.0"
+    HOST = "127.0.0.1"   # 公网部署请显式 --host 0.0.0.0 并前置鉴权
 
     DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
     KIMI_KEY = os.getenv("KIMI_API_KEY", "")
