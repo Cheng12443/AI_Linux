@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0
+"""
+kai-plugin — 全插件热插拔管理 CLI（常驻守护版）
+================================================================
+一切模块和功能皆插件，支持运行时热插拔。
+
+常驻主控（daemon）持有插件状态，跨命令持久：
+  kai-plugin serve          # 启动常驻主控（Unix socket /tmp/kai-plugin.sock）
+  kai-plugin list           # 列出所有插件
+  kai-plugin enable  <name> # 热启用
+  kai-plugin disable <name> # 热禁用
+  kai-plugin start   <name> # 启动（线程/进程）
+  kai-plugin stop    <name> # 停止
+  kai-plugin unload  <name> # 卸载
+  kai-plugin reload  <name> # 热重载
+  kai-plugin unplug  <name> # 热拔出（注销）
+  kai-plugin plug <spec.json> # 热插入
+  kai-plugin status <name>  # 单个插件状态
+  kai-plugin watch          # 观察热插拔事件
+  kai-plugin snapshot       # 导出快照
+"""
+
+import os
+import sys
+import json
+import time
+import socket
+import argparse
+import threading
+
+SOCK_PATH = os.environ.get("KAI_PLUGIN_SOCK", "/tmp/kai-plugin.sock")
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "plugins"))
+
+from plugin_master import (            # noqa: E402
+    PluginMaster, PluginKind, Plugin, BackendPlugin, ServicePlugin,
+    PythonModulePlugin, bootstrap, master,
+)
+
+C = {
+    "reset": "\033[0m", "red": "\033[31m", "green": "\033[32m",
+    "yellow": "\033[33m", "blue": "\033[34m", "cyan": "\033[36m",
+    "bold": "\033[1m", "gray": "\033[90m",
+}
+
+
+def color(text, name):
+    return f"{C[name]}{text}{C['reset']}"
+
+
+# ============================================================================
+# 常驻主控（daemon）
+# ============================================================================
+
+def serve():
+    """启动常驻插件主控"""
+    m = bootstrap()
+
+    print(color("KAI 全插件主控（daemon）启动", "cyan"))
+    print(m.summary())
+
+    # 事件观察日志
+    def on_event(name, old, new):
+        print(color(f"  [{time.strftime('%H:%M:%S')}] 🔔 {name}: {old} -> {new}",
+                    "yellow"))
+    m.bus.subscribe("plugin.state", on_event)
+
+    # Unix socket
+    try:
+        os.unlink(SOCK_PATH)
+    except OSError:
+        pass
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(SOCK_PATH)
+    srv.listen(8)
+    print(color(f"监听: {SOCK_PATH}   (Ctrl+C 退出)", "gray"))
+
+    def handle(conn):
+        try:
+            data = conn.recv(65536).decode()
+            req = json.loads(data)
+            resp = _execute(m, req)
+            conn.sendall(json.dumps(resp, ensure_ascii=False).encode())
+        except Exception as e:
+            conn.sendall(json.dumps({"error": str(e)}).encode())
+        finally:
+            conn.close()
+
+    def watchdog():
+        while True:
+            try:
+                m.watchdog_tick()
+            except Exception:
+                pass
+            time.sleep(5)
+
+    threading.Thread(target=watchdog, daemon=True).start()
+
+    try:
+        while True:
+            conn, _ = srv.accept()
+            threading.Thread(target=handle, args=(conn,), daemon=True).start()
+    except KeyboardInterrupt:
+        print("\n主控退出")
+    finally:
+        os.unlink(SOCK_PATH)
+
+
+def _execute(m: PluginMaster, req: dict) -> dict:
+    """执行 RPC 命令"""
+    cmd = req.get("cmd")
+    names = req.get("names", [])
+    if cmd == "enable":
+        for n in names: m.enable(n)
+    elif cmd == "disable":
+        for n in names: m.disable(n)
+    elif cmd == "start":
+        for n in names: m.start(n)
+    elif cmd == "stop":
+        for n in names: m.stop(n)
+    elif cmd == "unload":
+        for n in names: m.unload(n)
+    elif cmd == "reload":
+        for n in names: m.reload(n)
+    elif cmd == "unplug":
+        for n in names: m.unplug(n)
+    elif cmd == "plug":
+        spec = req.get("spec")
+        if spec:
+            kind = PluginKind(spec.get("kind", "feature"))
+            name = spec["name"]
+            if kind == PluginKind.BACKEND:
+                p = BackendPlugin(name=name, description=spec.get("description", ""))
+            elif kind == PluginKind.GWAPI:
+                p = ServicePlugin(name=name, command=spec["command"],
+                                  port=spec.get("port", 0),
+                                  description=spec.get("description", ""))
+            else:
+                p = Plugin(name=name, kind=kind,
+                           description=spec.get("description", ""))
+            m.plug(p)
+    elif cmd == "list":
+        return {"plugins": [p.snapshot() for p in m.plugins.values()]}
+    elif cmd == "get":
+        p = m.get(names[0]) if names else None
+        return {"plugin": p.snapshot() if p else None}
+    else:
+        return {"error": f"未知命令: {cmd}"}
+    return {"ok": True}
+
+
+# ============================================================================
+# RPC 客户端
+# ============================================================================
+
+def rpc(req: dict) -> dict:
+    """发送 RPC 到 daemon"""
+    if not os.path.exists(SOCK_PATH):
+        return {"error": "主控未运行，请先: kai-plugin serve"}
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(5)
+        s.connect(SOCK_PATH)
+        s.sendall(json.dumps(req).encode())
+        data = s.recv(1048576).decode()
+        s.close()
+        return json.loads(data)
+    except Exception as e:
+        return {"error": f"连接主控失败: {e}"}
+
+
+def require_daemon():
+    if not os.path.exists(SOCK_PATH):
+        print(color("✗ 主控未运行，请先: kai-plugin serve", "red"))
+        sys.exit(1)
+
+
+# ============================================================================
+# 展示
+# ============================================================================
+
+def render_list(resp: dict):
+    plugins = resp.get("plugins", [])
+    if not plugins:
+        print("（无插件）")
+        return
+    print(f"\n共 {len(plugins)} 个插件:\n")
+    print(f"{'名称':<24}{'类型':<12}{'状态':<11}{'健康':>4}  描述")
+    print("-" * 78)
+    for p in sorted(plugins, key=lambda x: (x["kind"], x["name"])):
+        st = p["state"]
+        mark = {"running": "●", "enabled": "◐", "disabled": "○",
+                "error": "✗", "degraded": "!", "unloaded": "·"}.get(st, "·")
+        st_c = {"running": "green", "enabled": "cyan", "disabled": "yellow",
+                "error": "red"}.get(st, "gray")
+        print(f"{mark} {color(p['name'].ljust(22), 'bold')}"
+              f"{color(p['kind'].ljust(12), 'blue')}"
+              f"{color(st.ljust(11), st_c)}"
+              f"{color(str(p['health']).rjust(4), 'green' if p['health'] > 60 else 'red')}"
+              f"  {p['description'][:30]}")
+    print()
+
+
+def render_status(p: dict):
+    if not p:
+        print(color("✗ 插件不存在", "red"))
+        return
+    print(f"\n{color('=' * 60, 'cyan')}")
+    print(f"  插件: {color(p['name'], 'bold')} [{p['kind']}] v{p['version']}")
+    print(f"{color('=' * 60, 'cyan')}")
+    print(f"  状态: {color(p['state'], 'green' if p['state'] == 'running' else 'yellow')}"
+          f"  健康: {color(str(p['health']), 'green')}")
+    print(f"  描述: {p['description']}")
+    if p.get("depends"):
+        print(f"  依赖: {', '.join(p['depends'])}")
+    if p.get("error"):
+        print(f"  错误: {color(p['error'], 'red')}")
+    print()
+
+
+# ============================================================================
+# main
+# ============================================================================
+
+def main():
+    ap = argparse.ArgumentParser(prog="kai-plugin",
+                                 description="KAI Linux 全插件热插拔管理")
+    sub = ap.add_subparsers(dest="cmd")
+
+    sub.add_parser("serve")
+    sub.add_parser("list")
+    e = sub.add_parser("enable");   e.add_argument("names", nargs="+")
+    d = sub.add_parser("disable");  d.add_argument("names", nargs="+")
+    s = sub.add_parser("start");    s.add_argument("names", nargs="+")
+    t = sub.add_parser("stop");     t.add_argument("names", nargs="+")
+    u = sub.add_parser("unload");   u.add_argument("names", nargs="+")
+    r = sub.add_parser("reload");   r.add_argument("names", nargs="+")
+    up = sub.add_parser("unplug");  up.add_argument("names", nargs="+")
+    pl = sub.add_parser("plug");    pl.add_argument("spec")
+    st = sub.add_parser("status");  st.add_argument("name")
+    sub.add_parser("snapshot")
+    sub.add_parser("watch")
+
+    args = ap.parse_args()
+    if not args.cmd:
+        ap.print_help()
+        return
+
+    if args.cmd == "serve":
+        serve()
+        return
+
+    if args.cmd == "watch":
+        require_daemon()
+        last = {}
+        print("观察热插拔事件（Ctrl+C 退出）...")
+        try:
+            while True:
+                resp = rpc({"cmd": "list"})
+                states = {p["name"]: p["state"] for p in resp.get("plugins", [])}
+                for name, st in states.items():
+                    if name not in last:
+                        print(color(f"  [{time.strftime('%H:%M:%S')}] {name} 上线: {st}",
+                                    "green"))
+                    elif last[name] != st:
+                        print(color(f"  [{time.strftime('%H:%M:%S')}] {name}: "
+                                    f"{last[name]} -> {st}", "yellow"))
+                last = states
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n停止观察")
+        return
+
+    # 其余命令走 RPC
+    require_daemon()
+    if args.cmd == "list":
+        render_list(rpc({"cmd": "list"}))
+    elif args.cmd == "status":
+        render_status(rpc({"cmd": "get", "names": [args.name]}).get("plugin"))
+    elif args.cmd == "plug":
+        with open(args.spec) as f:
+            spec = json.load(f)
+        r_ = rpc({"cmd": "plug", "spec": spec})
+        if r_.get("ok"):
+            print(color(f"🔌 热插入: {spec['name']} ({spec.get('kind', 'feature')})",
+                        "green"))
+        else:
+            print(color(f"✗ {r_.get('error')}", "red"))
+    elif args.cmd == "snapshot":
+        snap = rpc({"cmd": "list"})
+        print(json.dumps(snap, indent=2, ensure_ascii=False))
+    else:
+        r_ = rpc({"cmd": args.cmd, "names": args.names})
+        if r_.get("ok"):
+            verb = {"enable": "◐ 启用", "disable": "○ 禁用", "start": "● 启动",
+                    "stop": "◐ 停止", "unload": "· 卸载", "reload": "↻ 重载",
+                    "unplug": "🔌 拔出"}.get(args.cmd, args.cmd)
+            for n in args.names:
+                c = "green" if args.cmd in ("enable", "start") else "yellow"
+                print(color(f"{verb}: {n}", c))
+        else:
+            print(color(f"✗ {r_.get('error', '未知错误')}", "red"))
+
+
+if __name__ == "__main__":
+    main()

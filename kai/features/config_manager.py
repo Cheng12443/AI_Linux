@@ -19,7 +19,12 @@ config_manager.py — 配置验证 + 热更新 + 备份恢复（ROADMAP 5.2）
 import os
 import time
 import json
-import yaml
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+    import json as _json
 import shutil
 import threading
 from typing import Dict, Any, Optional, List
@@ -69,7 +74,7 @@ class ConfigManager:
         """加载配置"""
         try:
             with open(self.config_path) as f:
-                if self.config_path.endswith((".yaml", ".yml")):
+                if HAS_YAML and self.config_path.endswith((".yaml", ".yml")):
                     self._config = yaml.safe_load(f) or {}
                 else:
                     self._config = json.load(f)
@@ -150,7 +155,7 @@ class ConfigManager:
         """保存配置"""
         with self._lock:
             with open(self.config_path, "w") as f:
-                if self.config_path.endswith((".yaml", ".yml")):
+                if HAS_YAML and self.config_path.endswith((".yaml", ".yml")):
                     yaml.dump(self._config, f, allow_unicode=True,
                              sort_keys=False, default_flow_style=False)
                 else:

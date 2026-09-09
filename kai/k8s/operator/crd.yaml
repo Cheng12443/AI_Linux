@@ -1,0 +1,88 @@
+# ============================================================================
+# KAI Linux — Kubernetes CRD 定义
+#
+# 用法：
+#   kubectl apply -f crd.yaml
+# ============================================================================
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kainodes.kai-linux.ai
+spec:
+  group: kai-linux.ai
+  names:
+    kind: KaiNode
+    plural: kainodes
+    singular: kainode
+    shortNames:
+      - kn
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                backend:
+                  type: string
+                  enum: ["deepseek", "kimi", "auto"]
+                  default: "auto"
+                model:
+                  type: string
+                apiKeySecret:
+                  type: string
+                replicas:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                resources:
+                  type: object
+                  properties:
+                    memoryMB:
+                      type: integer
+                      default: 512
+                    concurrentInferences:
+                      type: integer
+                      default: 10
+                autoFailover:
+                  type: boolean
+                  default: true
+                alertWebhook:
+                  type: string
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: ["Pending", "Running", "Degraded", "Offline"]
+                healthScore:
+                  type: integer
+                activeInferences:
+                  type: integer
+                lastHeartbeat:
+                  type: string
+                  format: date-time
+              x-kubernetes-preserve-unknown-fields: true
+---
+# 示例资源
+apiVersion: kai-linux.ai/v1
+kind: KaiNode
+metadata:
+  name: kai-node-primary
+  namespace: kai-system
+spec:
+  backend: deepseek
+  model: deepseek-chat
+  apiKeySecret: kai-api-keys
+  replicas: 1
+  resources:
+    memoryMB: 1024
+    concurrentInferences: 20
+  autoFailover: true
+  alertWebhook: "http://alertmanager:9093/api/v2/alerts"

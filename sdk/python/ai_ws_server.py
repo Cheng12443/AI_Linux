@@ -155,7 +155,7 @@ def read_cpu() -> Dict:
         usage = int(used * 100 / max(total, 1))
         return {"user": user, "system": system, "idle": idle,
                 "iowait": iowait, "usage": usage}
-    except:
+    except Exception:
         return {"usage": 0}
 
 
@@ -179,7 +179,7 @@ def read_memory() -> Dict:
         else:
             mem["usage"] = 0
         return mem
-    except:
+    except Exception:
         return {"total": 0, "available": 0, "usage": 0}
 
 
@@ -193,7 +193,7 @@ def read_loadavg() -> Dict:
             "load5": float(parts[1]),
             "load15": float(parts[2]),
         }
-    except:
+    except Exception:
         return {"load1": 0, "load5": 0, "load15": 0}
 
 
@@ -202,7 +202,7 @@ def read_uptime() -> float:
     try:
         with open("/proc/uptime") as f:
             return float(f.read().split()[0])
-    except:
+    except Exception:
         return 0.0
 
 
@@ -222,7 +222,7 @@ def read_net() -> Dict:
                 rx += int(parts[0])
                 tx += int(parts[8])
         return {"rx": rx, "tx": tx}
-    except:
+    except Exception:
         return {"rx": 0, "tx": 0}
 
 
@@ -299,10 +299,10 @@ class AIInference:
                 f"\r\n"
             ).encode() + body
 
-            # 建立 SSL 连接
+            # 建立 SSL 连接（校验服务器证书 + 主机名）
             ctx = ssl.create_default_context()
-        ctx.check_hostname = True
-        ctx.verify_mode = ssl.CERT_REQUIRED
+            ctx.check_hostname = True
+            ctx.verify_mode = ssl.CERT_REQUIRED
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
             ssl_sock = ctx.wrap_socket(sock, server_hostname=host)

@@ -1,0 +1,107 @@
+{
+  "name": "kai-linux-vscode",
+  "displayName": "KAI Linux",
+  "description": "KAI Linux 开发辅助：AI 推理监控、内核模块提示、决策可视化",
+  "version": "0.1.0",
+  "publisher": "kai-linux",
+  "license": "GPL-2.0",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other", "Debuggers", "Visualization"],
+  "activationEvents": [
+    "onCommand:kai.status",
+    "onCommand:kai.ask",
+    "onCommand:kai.monitor",
+    "onLanguage:c",
+    "onLanguage:python",
+    "onView:kaiDecisions"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "kai.status",
+        "title": "KAI: 系统状态",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "kai.ask",
+        "title": "KAI: 询问 AI",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "kai.monitor",
+        "title": "KAI: 打开性能面板",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "kai.inferFile",
+        "title": "KAI: 推理选中代码",
+        "icon": "$(sparkle)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kai",
+          "title": "KAI Linux",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "kai": [
+        {
+          "id": "kaiDecisions",
+          "name": "AI 决策",
+          "icon": "$(list-ordered)"
+        },
+        {
+          "id": "kaiBackends",
+          "name": "硬件后端",
+          "icon": "$(chip)"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "kai.inferFile",
+          "when": "editorHasSelection",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "KAI Linux",
+      "properties": {
+        "kai.endpoint": {
+          "type": "string",
+          "default": "http://localhost:8080",
+          "description": "KAI Linux API 端点"
+        },
+        "kai.wsEndpoint": {
+          "type": "string",
+          "default": "ws://localhost:9998",
+          "description": "KAI Linux WebSocket 端点"
+        },
+        "kai.refreshInterval": {
+          "type": "number",
+          "default": 3000,
+          "description": "刷新间隔(ms)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "node node_modules/vscode/bin/compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "ws": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^18.0.0"
+  }
+}

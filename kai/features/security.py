@@ -67,7 +67,7 @@ class RBAC:
 
     def _init_default_roles(self):
         """初始化默认角色"""
-        self.add_role("admin", all(self.PERMISSIONS))
+        self.add_role("admin", self.PERMISSIONS.copy())
         self.add_role("operator", ["infer", "model_load", "config_read",
                                    "audit_read"])
         self.add_role("viewer", ["infer", "config_read"])

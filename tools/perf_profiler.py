@@ -271,7 +271,7 @@ class MemoryProfiler:
                 "swaps": usage.ru_nswap,
                 "ctx_switches": usage.ru_nvcsw + usage.ru_nivcsw,
             }
-        except:
+        except Exception:
             return {}
 
 

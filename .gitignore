@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.tmp_versions/
+*.ko
+*.o
+build/
